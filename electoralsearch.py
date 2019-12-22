@@ -13,9 +13,8 @@ import sys
 app = Flask(__name__)
 
 
-def sendEmail(img_name):
-	fromaddr = "deepprajapati.vnurture@gmail.com"
-	toaddr = "deepprajapati.vnurture@gmail.com"
+def sendEmail(img_name, toaddr):
+	fromaddr = "seleniumscrape@gmail.com"
 
 	# instance of MIMEMultipart 
 	msg = MIMEMultipart() 
@@ -27,7 +26,7 @@ def sendEmail(img_name):
 	msg['Subject'] = "Captcha Image"
 	  
 	# string to store the body of the mail 
-	body = "Please Read the captcha and put in below link \n http:127.0.0.1:5000/captcha"
+	body = "Please Read the captcha and put in below link <br/>  http:13.233.173.135/captcha"
 	  
 	# attach the body with the msg instance 
 	msg.attach(MIMEText(body, 'plain')) 
@@ -57,7 +56,7 @@ def sendEmail(img_name):
 	s.starttls() 
 	  
 	# Authentication 
-	s.login(fromaddr, "deep9822") 
+	s.login(fromaddr, "selenium@123") 
 	  
 	# Converts the Multipart msg into a string 
 	text = msg.as_string() 
@@ -79,47 +78,50 @@ def get_captcha_text(img_name,size):
     im = im.crop((left, top, right, bottom)) # defines crop points
     im.save(img_name)
 
-def getData(epic_number):
-	global driver
-	driver = Chrome("/usr/bin/chromedriver")
-	driver.get('https://electoralsearch.in/')
-	driver.set_window_size(1120, 850)
+def getData(epic_number, toaddr):
+	try:
+		global driver
+		driver = Chrome("/usr/bin/chromedriver")
+		driver.get('https://electoralsearch.in/')
+		driver.set_window_size(1120, 850)
 
-	# click on welcome button
-	welcome_button = driver.find_elements_by_xpath("//*[@id='welcomeDialog']/div/div/div/input")[0]
-	welcome_button.click()
+		# click on welcome button
+		welcome_button = driver.find_elements_by_xpath("//*[@id='welcomeDialog']/div/div/div/input")[0]
+		welcome_button.click()
 
-	# and click on epic tab
-	search_by_epic_number = driver.find_elements_by_xpath("//*[@role='tablist']/li[2]")[0]
-	search_by_epic_number.click()
+		# and click on epic tab
+		search_by_epic_number = driver.find_elements_by_xpath("//*[@role='tablist']/li[2]")[0]
+		search_by_epic_number.click()
 
-	# fill up the epic number
-	text = driver.find_element_by_id('name')
-	text.send_keys(epic_number)
+		# fill up the epic number
+		text = driver.find_element_by_id('name')
+		text.send_keys(epic_number)
 
-	# # select state if you want
-	# select_state=Select(driver.find_element_by_id('epicStateList'))
-	# select_state.select_by_visible_text('Gujarat')
-	element = driver.find_element_by_id('captchaEpicImg')
-	# print (text.get_attribute('src'))
-	location = element.location    
-	size = element.size
-	img_name = epic_number+'.png'
-	driver.save_screenshot(img_name)
-	get_captcha_text(img_name, size)
-	sendEmail(img_name)
-	# driver.quit()
+		# # select state if you want
+		# select_state=Select(driver.find_element_by_id('epicStateList'))
+		# select_state.select_by_visible_text('Gujarat')
+		element = driver.find_element_by_id('captchaEpicImg')
+		# print (text.get_attribute('src'))
+		location = element.location    
+		size = element.size
+		img_name = epic_number+'.png'
+		driver.save_screenshot(img_name)
+		get_captcha_text(img_name, size)
+		sendEmail(img_name, toaddr)
+	
+	except Exception as e:
+		driver.quit()
 
 
 @app.route('/', methods=['POST'])
 def enterEpicNumber():
 	try:
 		epic_number = request.json['epic_number']
-		getData(epic_number)
-		return jsonify({'status': 'success'})
+		toaddr = request.json['toaddr']
+		getData(epic_number, toaddr)
+		return jsonify({'status': 'success', 'message': 'Please check Your Mail'})
 
 	except Exception as e:
-		driver.quit()
 		return jsonify({'status': 'error', 'message': 'Please Try agian'})
 
 
@@ -173,4 +175,4 @@ def entercaptcha():
 		return jsonify({'status': 'error', 'message': 'Please Try agian'})
 
 if __name__ == '__main__':
-	app.run(debug=True)
+	app.run(debug=True, host='0.0.0.0')
