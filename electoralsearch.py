@@ -1,12 +1,13 @@
 from flask import Flask, request, jsonify
 import time
 from PIL import Image
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver import Chrome
 from selenium.webdriver.support.select import Select
-import smtplib 
-from email.mime.multipart import MIMEMultipart 
-from email.mime.text import MIMEText 
-from email.mime.base import MIMEBase 
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
 from email import encoders
 import sys
 
@@ -17,71 +18,78 @@ def sendEmail(img_name, toaddr):
 	fromaddr = "seleniumscrape@gmail.com"
 
 	# instance of MIMEMultipart 
-	msg = MIMEMultipart() 
-	   
-	msg['From'] = fromaddr 
-	msg['To'] = toaddr 
+	msg = MIMEMultipart()
+
+	msg['From'] = fromaddr
+	msg['To'] = toaddr
 
 	# storing the subject  
 	msg['Subject'] = "Captcha Image"
-	  
+
 	# string to store the body of the mail 
 	body = "Please Read the captcha and put in below link <br/>  http:13.233.173.135/captcha"
-	  
+
 	# attach the body with the msg instance 
-	msg.attach(MIMEText(body, 'plain')) 
-	  
+	msg.attach(MIMEText(body, 'plain'))
+
 	# open the file to be sent  
 	filename = img_name
-	attachment = open(img_name, "rb") 
-	  
+	attachment = open(img_name, "rb")
+
 	# instance of MIMEBase and named as p 
-	p = MIMEBase('application', 'octet-stream') 
-	  
+	p = MIMEBase('application', 'octet-stream')
+
 	# To change the payload into encoded form 
-	p.set_payload((attachment).read()) 
-	  
+	p.set_payload((attachment).read())
+
 	# encode into base64 
-	encoders.encode_base64(p) 
-	   
-	p.add_header('Content-Disposition', "attachment; filename= %s" % filename) 
-	  
+	encoders.encode_base64(p)
+
+	p.add_header('Content-Disposition', "attachment; filename= %s" % filename)
+
 	# attach the instance 'p' to instance 'msg' 
-	msg.attach(p) 
-	  
+	msg.attach(p)
+
 	# creates SMTP session 
-	s = smtplib.SMTP('smtp.gmail.com', 587) 
-	  
+	s = smtplib.SMTP('smtp.gmail.com', 587)
+
 	# start TLS for security 
-	s.starttls() 
-	  
+	s.starttls()
+
 	# Authentication 
-	s.login(fromaddr, "selenium@123") 
-	  
+	s.login(fromaddr, "selenium@123")
+
 	# Converts the Multipart msg into a string 
-	text = msg.as_string() 
-	  
+	text = msg.as_string()
+
 	# sending the mail 
-	s.sendmail(fromaddr, toaddr, text) 
-	  
+	s.sendmail(fromaddr, toaddr, text)
+
 	# terminating the session 
 	s.quit()
 
-def get_captcha_text(img_name,size):
-    im = Image.open(img_name) # uses PIL library to open image in memory
+def get_captcha_text(img_name,size, location):
+	im = Image.open(img_name) # uses PIL library to open image in memory
 
-    left = 266
-    top = 345
-    right = 266 + size['width']
-    bottom = 345 + size['height']
+	# left = 266
+	# top = 345
+	# right = 266 + size['width']
+	# bottom = 345 + size['height']
 
-    im = im.crop((left, top, right, bottom)) # defines crop points
-    im.save(img_name)
+	left = location['x']
+	top = location['y']
+	right = location['x'] + size['width']
+	bottom = location['y'] + size['height']
+
+	im = im.crop((left, top, right, bottom)) # defines crop points
+	im.save(img_name)
 
 def getData(epic_number, toaddr):
+	global driver
 	try:
-		global driver
-		driver = Chrome("/usr/bin/chromedriver")
+		options = Options()
+		options.headless = True
+		driver = Chrome("/usr/bin/chromedriver", options=options)
 		driver.get('https://electoralsearch.in/')
 		driver.set_window_size(1120, 850)
 
@@ -102,13 +110,13 @@ def getData(epic_number, toaddr):
 		# select_state.select_by_visible_text('Gujarat')
 		element = driver.find_element_by_id('captchaEpicImg')
 		# print (text.get_attribute('src'))
-		location = element.location    
+		location = element.location
 		size = element.size
 		img_name = epic_number+'.png'
 		driver.save_screenshot(img_name)
-		get_captcha_text(img_name, size)
+		get_captcha_text(img_name, size, location)
 		sendEmail(img_name, toaddr)
-	
+
 	except Exception as e:
 		driver.quit()
 
@@ -125,6 +133,7 @@ def enterEpicNumber():
 		return jsonify({'status': 'error', 'message': 'Please Try agian'})
 
 
+
 @app.route('/captcha', methods=['POST', "GET"])
 def entercaptcha():
 	global driver
@@ -132,7 +141,7 @@ def entercaptcha():
 		captcha_text = request.json['captcha_text']
 		text = driver.find_element_by_id('txtEpicCaptcha')
 		text.send_keys(captcha_text)
-		
+
 		# click on submit button
 		epic_submit = driver.find_element_by_id('btnEpicSubmit')
 		epic_submit.click()
@@ -148,7 +157,6 @@ def entercaptcha():
 			v = i.get_attribute('value')
 			a[k] = v
 		# print (a)
-
 		# store all information in data
 		data['id'] = a['id']
 		data['EPIC_No'] = a['epic_no']
@@ -175,4 +183,4 @@ def entercaptcha():
 		return jsonify({'status': 'error', 'message': 'Please Try agian'})
 
 if __name__ == '__main__':
-	app.run(debug=True, host='0.0.0.0')
+		app.run(debug=True, host='0.0.0.0')
